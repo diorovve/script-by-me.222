@@ -1,0 +1,56 @@
+-- Dan FFA | Растяг окна Roblox (через Win32 API)
+-- ВНИМАНИЕ: Работает только если твой executor поддерживает LuaJIT FFI (Xeno, Wave, Solara).
+
+if not pcall(function() return require("ffi") end) then
+    return warn("[Shiv] Твой executor не поддерживает FFI. Растяг окна невозможен.")
+end
+
+local ffi = require("ffi")
+local user32 = ffi.load("user32")
+
+ffi.cdef[[
+    typedef struct { long x; long y; } POINT;
+    typedef void* HWND;
+    HWND GetForegroundWindow();
+    int GetWindowRect(HWND hWnd, RECT* lpRect);
+    int SetWindowPos(HWND hWnd, HWND hWndInsertAfter, int X, int Y, int cx, int cy, uint32_t uFlags);
+    typedef struct { long left; long top; long right; long bottom; } RECT;
+]]
+
+-- Настройки
+local targetWidth = 1024
+local targetHeight = 68
+local currentState = false
+
+-- Получаем окно Roblox (оно всегда в фокусе, когда ты инжектишь)
+local hwnd = user32.GetForegroundWindow()
+
+if hwnd == nil then
+    return warn("[Shiv] Окно Roblox не найдено. Кликни по игре и запусти скрипт заново.")
+end
+
+-- Функция для переключения
+local function ToggleStretch()
+    currentState = not currentState
+    
+    if currentState then
+        -- Растягиваем окно (SWP_NOMOVE = 0x0002, SWP_NOZORDER = 0x0004)
+        user32.SetWindowPos(hwnd, nil, 0, 0, targetWidth, targetHeight, 0x0002 + 0x0004)
+        print("[Shiv] Окно растянуто до " .. targetWidth .. "x" .. targetHeight)
+    else
+        -- Возвращаем нормальный размер (берем 800x600 как базовый для окна)
+        user32.SetWindowPos(hwnd, nil, 0, 0, 800, 600, 0x0002 + 0x0004)
+        print("[Shiv] Окно возвращено в нормальный размер")
+    end
+end
+
+-- Бинд на клавишу "V"
+local UserInputService = game:GetService("UserInputService")
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.V then
+        ToggleStretch()
+    end
+end)
+
+print("[Shiv] Скрипт растяга загружен. Нажми V чтобы переключить разрешение окна.")
